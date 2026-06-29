@@ -1,0 +1,16 @@
+{
+  "name": "turbo-transfer-desktop",
+  "version": "1.0.0",
+  "description": "TurboTransfer desktop client (Electron shell over the Java/Netty backend)",
+  "main": "main.js",
+  "author": "Fatina",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dev": "set TT_DEV=1&& electron .",
+    "dev:external": "set TT_BACKEND_EXTERNAL=1&& set TT_DEV=1&& electron ."
+  },
+  "devDependencies": {
+    "electron": "^42.5.0"
+  }
+}

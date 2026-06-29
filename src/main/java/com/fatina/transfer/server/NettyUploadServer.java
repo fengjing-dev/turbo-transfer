@@ -5,8 +5,7 @@ import com.fatina.transfer.config.AppPaths;
 import com.fatina.transfer.config.RunMode;
 import com.fatina.transfer.peer.PeerDiscoveryService;
 import com.fatina.transfer.peer.PeerInfo;
-import com.fatina.transfer.server.handler.ChunkUploadHandler;
-import com.fatina.transfer.server.handler.HttpStaticResourceHandler;
+import com.fatina.transfer.server.router.HttpRouter;
 import com.fatina.transfer.support.AppLogger;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -38,7 +37,6 @@ public final class NettyUploadServer {
     private static final AppLogger LOGGER = AppLogger.forName(APP_CONFIG.serverLogFile());
 
     public static final int DEFAULT_PORT = APP_CONFIG.serverPort();
-    public static final String UPLOAD_DIR = APP_PATHS.downloadDir().toString();
     private static final int MAX_HTTP_BODY_SIZE = 64 * 1024 * 1024;
 
     private final int port;
@@ -72,15 +70,14 @@ public final class NettyUploadServer {
                             pipeline.addLast(new HttpServerCodec());
                             pipeline.addLast(new HttpObjectAggregator(MAX_HTTP_BODY_SIZE));
                             pipeline.addLast(new ChunkedWriteHandler());
-                            pipeline.addLast(new HttpStaticResourceHandler());
-                            pipeline.addLast(new ChunkUploadHandler());
+                            pipeline.addLast(new HttpRouter());
                         }
                     });
 
             ChannelFuture bindFuture = bootstrap.bind(port).sync();
             serverChannel = bindFuture.channel();
             peerDiscoveryService.start();
-            LOGGER.info("服务启动成功，端口=" + port + "，下载目录=" + UPLOAD_DIR);
+            LOGGER.info("服务启动成功，端口=" + port + "，传输目录=" + transferDir());
         } catch (InterruptedException e) {
             LOGGER.error("服务启动被中断", e);
             stop();
@@ -129,6 +126,16 @@ public final class NettyUploadServer {
     }
 
     public AppPaths appPaths() {
+        return APP_PATHS;
+    }
+
+    /** 当前传输目录（实时读取，支持运行时切换）。 */
+    public static String transferDir() {
+        return APP_PATHS.transferDir().toString();
+    }
+
+    /** 共享的应用目录实例，供 controller 切换传输目录。 */
+    public static AppPaths sharedPaths() {
         return APP_PATHS;
     }
 
@@ -194,7 +201,7 @@ public final class NettyUploadServer {
             System.out.println("访问地址: " + url);
         }
         System.out.println("安装目录: " + APP_PATHS.appHome());
-        System.out.println("下载目录: " + UPLOAD_DIR);
+        System.out.println("传输目录: " + transferDir());
         System.out.println("==================================================");
     }
 

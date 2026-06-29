@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurboTransfer</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="titlebar">
+    <div class="titlebar-brand">
+        <div class="brand-logo">T</div>
+        <span class="brand-name">TurboTransfer</span>
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">连接中...</span>
+    </div>
+    <div class="titlebar-search">
+        <input id="searchInput" type="text" placeholder="搜索文件库" />
+    </div>
+    <div class="window-controls">
+        <button class="win-btn" id="btnMin" title="最小化" aria-label="最小化">
+            <svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="win-btn" id="btnMax" title="最大化" aria-label="最大化">
+            <svg viewBox="0 0 12 12" width="11" height="11"><rect x="2.5" y="2.5" width="7" height="7" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        </button>
+        <button class="win-btn win-close" id="btnClose" title="关闭" aria-label="关闭">
+            <svg viewBox="0 0 12 12" width="11" height="11"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+        <button class="nav-item active" data-view="files">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.75V6.75A2.25 2.25 0 016 4.5h3.879a1.5 1.5 0 011.06.44l1.122 1.12a1.5 1.5 0 001.06.44H18a2.25 2.25 0 012.25 2.25v.75M3.75 9.75h16.5M3.75 9.75L4.5 18a2.25 2.25 0 002.25 2.25h10.5A2.25 2.25 0 0019.5 18l.75-8.25"/></svg>
+            <span>文件库</span>
+        </button>
+        <button class="nav-item" data-view="send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V4.5m0 0L7.5 9m4.5-4.5L16.5 9M4.5 19.5h15"/></svg>
+            <span>发送</span>
+        </button>
+        <button class="nav-item" data-view="devices">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 5.25h16.5v10.5H3.75V5.25Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 19.5h7.5M12 15.75v3.75"/></svg>
+            <span>设备</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a6.759 6.759 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0Z"/></svg>
+            <span>设置</span>
+        </button>
+        <div class="sidebar-footer" id="sidebarFooter">本机信息加载中...</div>
+    </nav>
+
+    <main class="content">
+        <section class="view active" id="view-files">
+            <h1>文件库</h1>
+            <p class="view-sub">已接收的文件，可下载或预览</p>
+            <div class="grid-view" id="gridView"></div>
+        </section>
+
+        <section class="view" id="view-send">
+            <h1>发送文件</h1>
+            <p class="view-sub">拖拽或点击选择文件，传输到本机仓库</p>
+            <div class="drop-zone" id="dropZone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="drop-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V4.5m0 0L7.5 9m4.5-4.5L16.5 9M4.5 19.5h15"/></svg>
+                <span id="uploadHint" class="drop-title">点击或拖拽文件到这里</span>
+                <span id="fileSizeInfo" class="drop-hint">支持跨平台任意大文件、安装包落盘</span>
+                <input type="file" id="fileInput" />
+            </div>
+            <div class="progress-wrapper" id="progressWrapper">
+                <div class="progress-head"><span id="statusText2">准备上传...</span><span id="percentText">0%</span></div>
+                <div class="progress-rail"><div class="progress-bar" id="progressBar"></div></div>
+            </div>
+            <button id="uploadBtn" class="btn-prime" onclick="startUpload()">开始传输</button>
+        </section>
+
+        <section class="view" id="view-devices">
+            <h1>局域网设备</h1>
+            <p class="view-sub">自动发现同一网络下的 TurboTransfer 节点</p>
+            <div class="grid-view" id="peerGridView"></div>
+        </section>
+
+        <section class="view" id="view-settings">
+            <h1>设置</h1>
+            <p class="view-sub">应用与传输配置</p>
+            <div class="settings-card">
+                <div class="settings-row">
+                    <div class="settings-label">传输目录</div>
+                    <div class="settings-actions">
+                        <button class="btn-secondary" id="chooseDirBtn" type="button">选择目录</button>
+                        <button class="btn-prime btn-inline" id="saveDirBtn" type="button">保存设置</button>
+                    </div>
+                </div>
+                <input class="settings-input" id="transferDirInput" type="text" placeholder="请选择传输目录" />
+                <div class="settings-value" id="transferDirValue">加载中...</div>
+                <p class="settings-note" id="transferDirNote">支持使用 Electron 原生目录对话框选择文件传输目录。</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>window.BACKEND_BASE = 'http://127.0.0.1:8080';</script>
+<script src="./app.js"></script>
+</body>
+</html>
