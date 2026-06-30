@@ -37,12 +37,25 @@ Run:
 package-installer.bat
 ```
 
-The script uses `jpackage` and produces a Windows installer under `dist\`.
+The script builds the Java backend, creates a bundled Java runtime with `jlink`, then uses Electron Builder to produce a Windows NSIS installer under `dist\`.
+
+Required tools:
+
+- Maven, or `mvnw.cmd` in the project root
+- JDK 17+ with `jlink.exe` in `PATH`
+- Node.js/npm
+
+The first run also needs Electron dependencies installed under `desktop-app`:
+
+```bat
+cd desktop-app
+npm install
+```
 
 ## Notes
 
 - Global runtime configuration is centralized in `src\main\resources\application.properties`.
-- The installer packages `target\app\TurboTransfer.jar` and `target\app\lib` together, and they are installed under the selected install directory.
+- The installer packages the Electron desktop shell, `target\app\TurboTransfer.jar`, `target\app\lib`, and the generated runtime under `target\jre`.
 - When started from the bat scripts, the install root is the script directory itself.
 - When started from the installed EXE, the install root is auto-detected from the launcher location.
 - Logs are written to `<install-dir>\log\launcher.log`.

@@ -2,27 +2,56 @@
 
 const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
 // 开发态：直接用 target/classes + 已下载依赖运行 Java 后端，改完后端只需 mvn compile。
 // 打包态后续会替换为内嵌 JRE + 后端 jar。
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const APP_ROOT = app.isPackaged ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
+const BACKEND_ROOT = app.isPackaged ? path.join(process.resourcesPath, 'backend') : path.resolve(__dirname, '..');
 const BACKEND_PORT = 8080;
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 const BACKEND_MAIN_CLASS = 'com.fatina.transfer.server.NettyUploadServer';
+const BACKEND_JAR = 'TurboTransfer.jar';
 
 let backendProcess = null;
 let mainWindow = null;
 
-function startBackend() {
-  const classpath = [
-    path.join(PROJECT_ROOT, 'target', 'classes'),
-    path.join(PROJECT_ROOT, 'target', 'app', 'lib', '*')
-  ].join(path.delimiter);
+function resolveJavaCommand() {
+  const executable = process.platform === 'win32' ? 'java.exe' : 'java';
+  const bundledJava = path.join(process.resourcesPath, 'jre', 'bin', executable);
+  if (app.isPackaged && fs.existsSync(bundledJava)) {
+    return bundledJava;
+  }
+  return 'java';
+}
 
-  backendProcess = spawn('java', ['-Dfile.encoding=UTF-8', '-cp', classpath, BACKEND_MAIN_CLASS], {
-    cwd: PROJECT_ROOT,
+function resolveBackendClasspath() {
+  if (app.isPackaged) {
+    return [
+      path.join(BACKEND_ROOT, BACKEND_JAR),
+      path.join(BACKEND_ROOT, 'lib', '*')
+    ].join(path.delimiter);
+  }
+
+  return [
+    path.join(BACKEND_ROOT, 'target', 'classes'),
+    path.join(BACKEND_ROOT, 'target', 'app', 'lib', '*')
+  ].join(path.delimiter);
+}
+
+function startBackend() {
+  const classpath = resolveBackendClasspath();
+
+  backendProcess = spawn(resolveJavaCommand(), [
+    '-Dfile.encoding=UTF-8',
+    `-Dturbo.transfer.app.home=${APP_ROOT}`,
+    '-cp',
+    classpath,
+    BACKEND_MAIN_CLASS
+  ], {
+    cwd: APP_ROOT,
     windowsHide: true
   });
 

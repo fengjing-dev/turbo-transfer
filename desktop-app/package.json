@@ -3,14 +3,54 @@
   "version": "1.0.0",
   "description": "TurboTransfer desktop client (Electron shell over the Java/Netty backend)",
   "main": "main.js",
+  "productName": "TurboTransfer",
   "author": "Fatina",
   "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
     "dev": "set TT_DEV=1&& electron .",
-    "dev:external": "set TT_BACKEND_EXTERNAL=1&& set TT_DEV=1&& electron ."
+    "dev:external": "set TT_BACKEND_EXTERNAL=1&& set TT_DEV=1&& electron .",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.fatina.turbotransfer",
+    "productName": "TurboTransfer",
+    "directories": {
+      "output": "../dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../target/app",
+        "to": "backend",
+        "filter": [
+          "TurboTransfer.jar",
+          "lib/**/*"
+        ]
+      },
+      {
+        "from": "../target/jre",
+        "to": "jre"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TurboTransfer"
+    }
   },
   "devDependencies": {
-    "electron": "^42.5.0"
+    "electron": "^42.5.0",
+    "electron-builder": "^26.0.12"
   }
 }

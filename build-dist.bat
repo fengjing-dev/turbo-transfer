@@ -13,9 +13,21 @@ cd /d "%APP_HOME%"
 if not exist "%APP_HOME%\%LOG_DIR%" mkdir "%APP_HOME%\%LOG_DIR%"
 set "LAUNCHER_LOG=%APP_HOME%\%LOG_DIR%\%LAUNCHER_LOG_FILE%"
 
+if exist "%APP_HOME%\mvnw.cmd" (
+    set "MAVEN_CMD=%APP_HOME%\mvnw.cmd"
+) else (
+    where mvn.cmd >nul 2>nul
+    if errorlevel 1 (
+        echo [TurboTransfer] Maven is required but was not found. Install Maven or add mvnw.cmd to the project root.
+        echo [TurboTransfer] Maven is required but was not found. >> "%LAUNCHER_LOG%"
+        exit /b 1
+    )
+    for /f "delims=" %%i in ('where mvn.cmd') do set "MAVEN_CMD=%%i"
+)
+
 echo [TurboTransfer] Compiling project...
 echo [TurboTransfer] Compiling project... >> "%LAUNCHER_LOG%"
-call mvn -q -DskipTests compile >> "%LAUNCHER_LOG%" 2>&1
+call "%MAVEN_CMD%" -q -DskipTests compile >> "%LAUNCHER_LOG%" 2>&1
 if errorlevel 1 goto :fail
 
 echo [TurboTransfer] Refreshing application package...
@@ -25,7 +37,7 @@ if exist "%APP_STAGE_DIR%" goto :locked
 mkdir "%APP_STAGE_DIR%"
 mkdir "%APP_STAGE_DIR%\lib"
 
-call mvn -q dependency:copy-dependencies "-DincludeScope=runtime" "-DoutputDirectory=%APP_STAGE_DIR%\lib" >> "%LAUNCHER_LOG%" 2>&1
+call "%MAVEN_CMD%" -q dependency:copy-dependencies "-DincludeScope=runtime" "-DoutputDirectory=%APP_STAGE_DIR%\lib" >> "%LAUNCHER_LOG%" 2>&1
 if errorlevel 1 goto :fail
 
 jar --create --file "%APP_STAGE_DIR%\%MAIN_JAR%" -C "target\classes" . >> "%LAUNCHER_LOG%" 2>&1
