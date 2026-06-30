@@ -53,6 +53,7 @@ public final class HttpResponses {
     private static void finish(ChannelHandlerContext ctx, FullHttpResponse response) {
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
         response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+        response.headers().set("Accept-CH", "Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version");
         ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
 }

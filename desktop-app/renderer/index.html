@@ -9,7 +9,7 @@
 <body>
 <header class="titlebar">
     <div class="titlebar-brand">
-        <div class="brand-logo">T</div>
+        <img class="brand-logo-img" src="../assets/icon.png" alt="T" />
         <span class="brand-name">TurboTransfer</span>
         <span class="status-dot" id="statusDot"></span>
         <span class="status-text" id="statusText">连接中...</span>
@@ -55,6 +55,17 @@
         <section class="view active" id="view-files">
             <h1>文件库</h1>
             <p class="view-sub">已接收的文件，可下载或预览</p>
+            <div class="file-toolbar">
+                <select id="sortSelect" class="toolbar-select">
+                    <option value="name-asc">名称 A-Z</option>
+                    <option value="name-desc">名称 Z-A</option>
+                    <option value="size-asc">大小 (小到大)</option>
+                    <option value="size-desc">大小 (大到小)</option>
+                    <option value="time-desc" selected>时间 (最新)</option>
+                    <option value="time-asc">时间 (最早)</option>
+                </select>
+                <span class="file-count" id="fileCount"></span>
+            </div>
             <div class="grid-view" id="gridView"></div>
         </section>
 
@@ -78,6 +89,10 @@
             <h1>局域网设备</h1>
             <p class="view-sub">自动发现同一网络下的 TurboTransfer 节点</p>
             <div class="grid-view" id="peerGridView"></div>
+
+            <h2 class="section-title">已连接设备</h2>
+            <p class="view-sub">曾经访问过本机服务的客户端</p>
+            <div class="grid-view" id="clientGridView"></div>
         </section>
 
         <section class="view" id="view-settings">
@@ -99,7 +114,7 @@
     </main>
 </div>
 
-<script>window.BACKEND_BASE = 'http://127.0.0.1:8080';</script>
+<script>window.BACKEND_BASE = 'http://127.0.0.1:9527';</script>
 <script src="./app.js"></script>
 </body>
 </html>

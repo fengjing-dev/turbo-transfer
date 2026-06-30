@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('turboNative', {
   minimize: () => ipcRenderer.send('window:minimize'),
   toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
   close: () => ipcRenderer.send('window:close'),
-  chooseDirectory: () => ipcRenderer.invoke('dialog:choose-dir')
+  chooseDirectory: () => ipcRenderer.invoke('dialog:choose-dir'),
+  getNetworkAddresses: () => ipcRenderer.invoke('system:network-addresses')
 });

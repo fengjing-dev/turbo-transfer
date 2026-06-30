@@ -6,6 +6,7 @@ const CHUNK_SIZE = 5 * 1024 * 1024;
 const state = {
     files: [],
     keyword: '',
+    sortKey: 'time-desc',
     transferDir: '',
     transferDirDraft: ''
 };
@@ -14,13 +15,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initWindowControls();
     initNav();
     initSearch();
+    initSort();
     initUpload();
     initHostInfo();
     initSettings();
     fetchFiles();
     fetchPeers();
+    fetchClients();
     fetchTransferDir();
     setInterval(fetchPeers, 5000);
+    setInterval(fetchClients, 5000);
 });
 
 function initWindowControls() {
@@ -55,9 +59,41 @@ function initSearch() {
     });
 }
 
-function initHostInfo() {
-    document.getElementById('sidebarFooter').innerHTML =
-        '服务端口 8080<br><span id="hostState">检测中...</span>';
+function initSort() {
+    const select = document.getElementById('sortSelect');
+    select.addEventListener('change', () => {
+        state.sortKey = select.value;
+        renderFiles();
+    });
+}
+
+async function initHostInfo() {
+    const footer = document.getElementById('sidebarFooter');
+    let addressHtml = '';
+
+    if (window.turboNative && typeof window.turboNative.getNetworkAddresses === 'function') {
+        try {
+            const addresses = await window.turboNative.getNetworkAddresses();
+            if (addresses && addresses.length > 0) {
+                addressHtml = '<span class="footer-label">连接地址</span>' +
+                    addresses.map(addr =>
+                        `<span class="footer-addr" title="点击复制" data-addr="${addr}">${addr}</span>`
+                    ).join('');
+            }
+        } catch (_) { /* ignore */ }
+    }
+
+    footer.innerHTML = addressHtml || '';
+
+    footer.addEventListener('click', (e) => {
+        const target = e.target.closest('.footer-addr');
+        if (!target) return;
+        navigator.clipboard.writeText(target.dataset.addr).then(() => {
+            const original = target.textContent;
+            target.textContent = '已复制';
+            setTimeout(() => { target.textContent = original; }, 1200);
+        });
+    });
 }
 
 function setOnline(online) {
@@ -66,10 +102,6 @@ function setOnline(online) {
     dot.classList.toggle('online', online);
     dot.classList.toggle('offline', !online);
     text.textContent = online ? '在线' : '后端离线';
-    const hostState = document.getElementById('hostState');
-    if (hostState) {
-        hostState.textContent = online ? '运行中' : '未连接';
-    }
 }
 
 function initUpload() {
@@ -298,6 +330,7 @@ const FILE_TYPE_GROUPS = {
     spreadsheet: ['.xlsx', '.xls', '.csv', '.numbers'],
     package: ['.apk', '.dmg', '.exe', '.pkg', '.msi', '.ipa'],
     design: ['.psd', '.ai', '.sketch', '.fig'],
+    torrent: ['.torrent'],
     archive: ['.zip', '.rar', '.7z', '.tar', '.gz'],
     document: ['.pdf', '.doc', '.docx', '.txt', '.md', '.rtf'],
     presentation: ['.ppt', '.pptx', '.key'],
@@ -314,6 +347,7 @@ const FILE_TYPE_BY_EXTENSION = Object.entries(FILE_TYPE_GROUPS).reduce((mapping,
 }, {});
 
 const FILE_TYPE_META = {
+    torrent: { label: 'TORRENT', accentClass: 'accent-emerald', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>' },
     spreadsheet: { label: 'SHEET', accentClass: 'accent-green', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5M3.75 5.25v13.5m16.5-13.5v13.5m-13.5-13.5v13.5m4.5-13.5v13.5m4.5-13.5v13.5"></path>' },
     design: { label: 'DESIGN', accentClass: 'accent-pink', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 6.75A2.25 2.25 0 016.75 4.5h10.5A2.25 2.25 0 0119.5 6.75v10.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25V6.75Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15.75c1.5-3 3-4.5 4.5-4.5s2.25 1.125 3 2.25"></path><path stroke-linecap="round" stroke-linejoin="round" d="M9 9.75h.008v.008H9V9.75Z"></path>' },
     archive: { label: 'ZIP', accentClass: 'accent-amber', icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"></path>' },
@@ -428,14 +462,32 @@ function fetchFiles() {
         .catch(() => setOnline(false));
 }
 
+function sortFiles(files) {
+    const sorted = [...files];
+    const [field, dir] = state.sortKey.split('-');
+    sorted.sort((a, b) => {
+        let cmp = 0;
+        if (field === 'name') cmp = a.name.localeCompare(b.name);
+        else if (field === 'size') cmp = (a.size || 0) - (b.size || 0);
+        else if (field === 'time') cmp = (a.lastModified || 0) - (b.lastModified || 0);
+        return dir === 'desc' ? -cmp : cmp;
+    });
+    return sorted;
+}
+
 function renderFiles() {
     const gridView = document.getElementById('gridView');
-    const list = state.keyword
+    const fileCount = document.getElementById('fileCount');
+    let list = state.keyword
         ? state.files.filter((file) => file.name.toLowerCase().includes(state.keyword))
         : state.files;
 
+    list = sortFiles(list);
+    if (fileCount) fileCount.textContent = `${list.length} 个文件`;
+
     if (!list || list.length === 0) {
-        gridView.innerHTML = `<div class="empty-tip">${state.keyword ? '没有匹配的文件' : '暂无文件，去“发送”上传一个试试'}</div>`;
+        gridView.innerHTML = `<div class=”empty-tip”>${state.keyword ? '没有匹配的文件' : '暂无文件，去”发送”上传一个试试'}</div>`;
+        if (fileCount) fileCount.textContent = '';
         return;
     }
 
@@ -501,6 +553,118 @@ function fetchPeers() {
                 peerGrid.innerHTML = '<div class="empty-tip">设备列表加载失败</div>';
             }
         });
+}
+
+function fetchClients() {
+    fetch(`${API_BASE}/api/clients`)
+        .then((response) => response.json())
+        .then((clients) => {
+            const grid = document.getElementById('clientGridView');
+            if (!clients || clients.length === 0) {
+                grid.innerHTML = '<div class="empty-tip">暂无设备连接</div>';
+                return;
+            }
+
+            grid.innerHTML = clients.map((client) => {
+                const seenAt = formatTimestamp(client.lastSeen);
+                const parsed = parseClientDevice(client);
+                return `
+                    <div class="media-card">
+                        <div class="preview-box">
+                            <div class="preview-glyph accent-green">
+                                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"></path>
+                                </svg>
+                                <span class="preview-glyph-tag">${parsed.tag}</span>
+                            </div>
+                        </div>
+                        <div class="media-info">
+                            <span class="media-title" title="${client.ip}">${parsed.device}</span>
+                            <span class="media-size">${client.ip}</span>
+                            <span class="media-size">${parsed.browser}</span>
+                            <span class="media-size">请求 ${client.requestCount} 次 | ${seenAt}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        })
+        .catch(() => {
+            const grid = document.getElementById('clientGridView');
+            if (grid) grid.innerHTML = '<div class="empty-tip">客户端列表加载失败</div>';
+        });
+}
+
+function parseClientDevice(client) {
+    const ua = client.userAgent || '';
+    const model = client.deviceModel || '';
+    const platform = client.platform || '';
+    const platVer = client.platformVersion || '';
+
+    let device = '未知设备';
+    let browser = '未知浏览器';
+    let tag = 'CLIENT';
+
+    // --- Device ---
+    if (model) {
+        device = model;
+    } else if (ua.includes('iPhone')) {
+        device = 'iPhone';
+    } else if (ua.includes('iPad')) {
+        device = 'iPad';
+    } else {
+        const androidModel = ua.match(/;\s*([^;)]+)\s+Build\//);
+        if (androidModel) device = androidModel[1].trim();
+        else if (ua.includes('Android')) device = 'Android';
+        else if (ua.includes('Macintosh')) device = 'Mac';
+        else if (ua.includes('Windows')) device = 'Windows PC';
+        else if (ua.includes('Linux') && !ua.includes('Android')) device = 'Linux';
+    }
+
+    // OS version from platform hints or UA
+    let osInfo = '';
+    if (platform && platVer) {
+        osInfo = `${platform} ${platVer}`;
+    } else {
+        const iosVer = ua.match(/CPU (?:iPhone )?OS (\d+[_\d]*)/);
+        const androidVer = ua.match(/Android\s+([\d.]+)/);
+        const winVer = ua.match(/Windows NT ([\d.]+)/);
+        const macVer = ua.match(/Mac OS X (\d+[_\d]*)/);
+        if (iosVer) osInfo = 'iOS ' + iosVer[1].replace(/_/g, '.');
+        else if (androidVer) osInfo = 'Android ' + androidVer[1];
+        else if (winVer) osInfo = 'Windows ' + ({ '10.0': '10/11', '6.3': '8.1', '6.2': '8', '6.1': '7' }[winVer[1]] || winVer[1]);
+        else if (macVer) osInfo = 'macOS ' + macVer[1].replace(/_/g, '.');
+    }
+    if (osInfo) device += ' (' + osInfo + ')';
+
+    // --- Browser ---
+    if (ua.includes('Electron')) { browser = 'TurboTransfer'; tag = 'APP'; }
+    else if (ua.includes('Edg/')) {
+        const v = ua.match(/Edg\/([\d.]+)/);
+        browser = 'Edge' + (v ? ' ' + v[1].split('.')[0] : '');
+    }
+    else if (ua.includes('CriOS/')) {
+        const v = ua.match(/CriOS\/([\d.]+)/);
+        browser = 'Chrome' + (v ? ' ' + v[1].split('.')[0] : '');
+    }
+    else if (ua.includes('Chrome/') && !ua.includes('Edg/')) {
+        const v = ua.match(/Chrome\/([\d.]+)/);
+        browser = 'Chrome' + (v ? ' ' + v[1].split('.')[0] : '');
+    }
+    else if (ua.includes('FxiOS/') || ua.includes('Firefox/')) {
+        const v = ua.match(/(?:FxiOS|Firefox)\/([\d.]+)/);
+        browser = 'Firefox' + (v ? ' ' + v[1].split('.')[0] : '');
+    }
+    else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
+        const v = ua.match(/Version\/([\d.]+)/);
+        browser = 'Safari' + (v ? ' ' + v[1].split('.')[0] : '');
+    }
+    else if (ua.includes('okhttp')) { browser = 'App (okhttp)'; tag = 'APP'; }
+
+    if (ua.includes('Mobile')) tag = 'MOBILE';
+    else if (ua.includes('iPad') || ua.includes('Tablet')) tag = 'TABLET';
+    else if (ua.includes('Macintosh') || ua.includes('Windows') || ua.includes('Linux')) tag = 'PC';
+
+    return { device, browser, tag };
 }
 
 function describeMode(mode) {

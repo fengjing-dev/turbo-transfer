@@ -1,22 +1,25 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, ipcMain, dialog, nativeImage } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const os = require('os');
 
 // 开发态：直接用 target/classes + 已下载依赖运行 Java 后端，改完后端只需 mvn compile。
 // 打包态后续会替换为内嵌 JRE + 后端 jar。
 const APP_ROOT = app.isPackaged ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
 const BACKEND_ROOT = app.isPackaged ? path.join(process.resourcesPath, 'backend') : path.resolve(__dirname, '..');
-const BACKEND_PORT = 8080;
+const BACKEND_PORT = 9527;
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 const BACKEND_MAIN_CLASS = 'com.fatina.transfer.server.NettyUploadServer';
 const BACKEND_JAR = 'TurboTransfer.jar';
 
 let backendProcess = null;
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
 
 function resolveJavaCommand() {
   const executable = process.platform === 'win32' ? 'java.exe' : 'java';
@@ -79,6 +82,34 @@ function waitForBackend(retries = 60, intervalMs = 500) {
   });
 }
 
+function getLocalAddresses() {
+  const interfaces = os.networkInterfaces();
+  const addresses = [];
+  for (const nets of Object.values(interfaces)) {
+    for (const net of nets) {
+      if (net.family === 'IPv4' && !net.internal) {
+        addresses.push(net.address);
+      }
+    }
+  }
+  return addresses;
+}
+
+function createTray() {
+  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
+  const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  tray = new Tray(icon);
+  tray.setToolTip('TurboTransfer');
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: '显示窗口', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+    { type: 'separator' },
+    { label: '退出程序', click: () => { isQuitting = true; app.quit(); } }
+  ]);
+  tray.setContextMenu(contextMenu);
+  tray.on('double-click', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -87,8 +118,8 @@ function createWindow() {
     minHeight: 640,
     show: false,
     frame: false,
-    backgroundColor: '#00000000',
-    backgroundMaterial: 'acrylic',
+    backgroundColor: '#0a0e1a',
+    backgroundMaterial: 'mica',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -98,6 +129,13 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindow.once('ready-to-show', () => mainWindow.show());
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   // 设 TT_DEV=1 时自动打开 DevTools，并补回移除菜单后失效的 F12 / Ctrl+R 快捷键。
   if (process.env.TT_DEV) {
@@ -146,7 +184,10 @@ app.whenReady().then(async () => {
   });
   ipcMain.on('window:close', () => mainWindow && mainWindow.close());
 
-  // 原生目录选择对话框，供“设置 - 传输目录”使用。
+  ipcMain.handle('system:network-addresses', () => {
+    return getLocalAddresses().map(addr => `http://${addr}:${BACKEND_PORT}`);
+  });
+
   ipcMain.handle('dialog:choose-dir', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
     if (result.canceled || result.filePaths.length === 0) {
@@ -165,11 +206,10 @@ app.whenReady().then(async () => {
     console.error(error.message);
   }
   createWindow();
+  createTray();
 });
 
-app.on('window-all-closed', () => {
+app.on('before-quit', () => {
+  isQuitting = true;
   stopBackend();
-  app.quit();
 });
-
-app.on('before-quit', stopBackend);

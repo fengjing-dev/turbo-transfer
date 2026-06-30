@@ -18,10 +18,12 @@
     "directories": {
       "output": "../dist"
     },
+    "icon": "assets/icon.png",
     "files": [
       "main.js",
       "preload.js",
       "renderer/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "extraResources": [
